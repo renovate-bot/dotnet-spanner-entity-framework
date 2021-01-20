@@ -176,7 +176,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     {typeof(string), s_defaultString},
                     {typeof(Guid), s_guid},
                     {typeof(Regex), s_defaultString },
-                    {typeof(byte[]), s_byte},
                     {typeof(byte), s_byte},
                     {typeof(sbyte), s_sbyte},
                     {typeof(ulong), s_ulong},
