@@ -25,6 +25,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Xunit;
 using V1 = Google.Cloud.Spanner.V1;
@@ -801,6 +802,33 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     Assert.Equal("4", request.Params.Fields["__minLength_0"].StringValue);
                 }
             );
+        }
+
+        [Fact]
+        public async Task CanUseRegexReplace()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT REGEXP_REPLACE(s.FirstName, @__regex_1, @__replacement_2)\r\nFROM Singers AS s\r\nWHERE s.SingerId = @__singerId_0";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.String, "FirstName"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "Allison" },
+                }
+            ));
+
+            var singerId = 1L;
+            var replacement = "Allison";
+            var pattern = "Al.*";
+            var regex = new Regex(pattern);
+            var firstNames = await db.Singers
+                .Where(s => s.SingerId == singerId)
+                .Select(s => regex.Replace(s.FirstName, replacement))
+                .ToListAsync();
+            Assert.Collection(firstNames, s => Assert.Equal("Allison", s));
         }
 
         private string AddFindSingerResult(string sql = "SELECT s.SingerId, s.BirthDate, s.FirstName, s.FullName, s.LastName, s.Picture\r\nFROM Singers AS s\r\nWHERE s.SingerId = @__p_0\r\nLIMIT 1")

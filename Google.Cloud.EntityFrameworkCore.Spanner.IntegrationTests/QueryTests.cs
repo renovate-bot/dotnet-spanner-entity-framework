@@ -21,6 +21,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -663,6 +664,69 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 .Select(s => string.Format("%025d: %s, born on %t", s.SingerId, s.FullName, s.BirthDate))
                 .FirstOrDefaultAsync();
             Assert.Equal($"{singerId.ToString().PadLeft(25, '0')}: Alice Morrison, born on {new SpannerDate(1973, 10, 9)}", formattedName);
+        }
+
+        [Fact]
+        public async Task CanUseRegexIsMatch()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId1 = _fixture.RandomLong();
+            var singerId2 = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId1, FirstName = "Pete", LastName = "Peterson" },
+                new Singers { SingerId = singerId2, FirstName = "Alice", LastName = "Morrison" }
+            );
+            await db.SaveChangesAsync();
+
+            var pattern = ".*Peterson";
+            var regex = new Regex(pattern);
+            var singers = await db.Singers
+                .Where(s => regex.IsMatch(s.FullName))
+                .Where(s => new long[] { singerId1, singerId2 }.Contains(s.SingerId))
+                .ToListAsync();
+            Assert.Collection(singers, s => Assert.Equal("Pete Peterson", s.FullName));
+
+            singers = await db.Singers
+                .Where(s => Regex.IsMatch(s.FullName, pattern))
+                .Where(s => new long[] { singerId1, singerId2 }.Contains(s.SingerId))
+                .ToListAsync();
+            Assert.Collection(singers, s => Assert.Equal("Pete Peterson", s.FullName));
+        }
+
+        [Fact]
+        public async Task CanUseRegexReplace()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId1 = _fixture.RandomLong();
+            var singerId2 = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId1, FirstName = "Pete", LastName = "Peterson" },
+                new Singers { SingerId = singerId2, FirstName = "Alice", LastName = "Morrison" }
+            );
+            await db.SaveChangesAsync();
+
+            var replacement = "Allison";
+            var pattern = "Al.*";
+            var regex = new Regex(pattern);
+            var firstNames = await db.Singers
+                .Where(s => new long[] { singerId1, singerId2 }.Contains(s.SingerId))
+                .OrderBy(s => s.LastName)
+                .Select(s => regex.Replace(s.FirstName, replacement))
+                .ToListAsync();
+            Assert.Collection(firstNames,
+                s => Assert.Equal("Allison", s),
+                s => Assert.Equal("Pete", s)
+            );
+
+            firstNames = await db.Singers
+                .Where(s => new long[] { singerId1, singerId2 }.Contains(s.SingerId))
+                .OrderBy(s => s.LastName)
+                .Select(s => Regex.Replace(s.FirstName, pattern, replacement))
+                .ToListAsync();
+            Assert.Collection(firstNames,
+                s => Assert.Equal("Allison", s),
+                s => Assert.Equal("Pete", s)
+            );
         }
 
         [Fact]

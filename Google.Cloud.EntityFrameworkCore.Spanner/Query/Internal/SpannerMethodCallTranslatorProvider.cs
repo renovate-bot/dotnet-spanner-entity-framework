@@ -34,6 +34,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                 new IMethodCallTranslator[]
                 {
                     new SpannerStringMethodTranslator(sqlExpressionFactory),
+                    new SpannerRegexMethodTranslator(sqlExpressionFactory),
                 });
         }
     }
