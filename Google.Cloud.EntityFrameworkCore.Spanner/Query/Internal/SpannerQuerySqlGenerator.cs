@@ -31,6 +31,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         {
         }
 
+        protected override string GenerateOperator(SqlBinaryExpression binaryExpression)
+        {
+            if (binaryExpression.OperatorType == ExpressionType.Add)
+            {
+                if ((binaryExpression.Left.TypeMapping.StoreTypeNameBase == "STRING" || binaryExpression.Left.TypeMapping.StoreTypeNameBase == "BYTES")
+                    && (binaryExpression.Right.TypeMapping.StoreTypeNameBase == "STRING" || binaryExpression.Right.TypeMapping.StoreTypeNameBase == "BYTES"))
+                {
+                    return "||";
+                }
+            }
+            return base.GenerateOperator(binaryExpression);
+        }
+
         protected override void GenerateLimitOffset(SelectExpression selectExpression)
         {
             GaxPreconditions.CheckNotNull(selectExpression, nameof(selectExpression));
